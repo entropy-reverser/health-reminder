@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#10b981">
+  <meta name="description" content="在忙碌中照顾自己 —— 极简健康提醒工具">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>健康提醒</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <script src="./config.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-surface: #13131a;
+      --bg-elevated: #1a1a24;
+      --text-primary: #e4e4e7;
+      --text-secondary: #71717a;
+      --text-muted: #52525b;
+      --accent: #10b981;
+      --accent-dim: rgba(16, 185, 129, 0.15);
+      --danger: #ef4444;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100dvh;
+      overflow-x: hidden;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: -40%; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: -1;
+    }
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 24px 20px;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header { text-align: center; padding: 32px 0 40px; }
+    .header-icon {
+      width: 64px; height: 64px;
+      margin: 0 auto 20px;
+      background: var(--accent-dim);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+    .header h1 { font-size: 1.75rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; }
+    .header p { color: var(--text-secondary); font-size: 0.9375rem; line-height: 1.5; }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 100px;
+      font-size: 0.8125rem; font-weight: 500;
+      background: var(--bg-surface);
+      border: 1px solid rgba(255,255,255,0.06);
+      margin-top: 20px;
+      transition: all 0.3s ease;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 0.3s ease;
+    }
+    .status-badge.granted .status-dot {
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: breathe 2s ease-in-out infinite;
+    }
+    .status-badge.denied .status-dot { background: var(--danger); }
+    @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .btn-permit {
+      display: none; margin-top: 16px;
+      padding: 12px 28px;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius-sm);
+      font-size: 0.9375rem; font-weight: 500;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn-permit:active { transform: scale(0.97); }
+    .btn-permit:hover { box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3); }
+    .denied-hint {
+      display: none; margin-top: 12px;
+      color: var(--text-muted); font-size: 0.8125rem; line-height: 1.5;
+    }
+    .main { flex: 1; }
+    .task-list { display: flex; flex-direction: column; gap: 12px; }
+    .task-card {
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 18px;
+      background: var(--bg-surface);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--card-accent, var(--accent));
+      animation: cardIn 0.4s ease both;
+      animation-delay: var(--delay, 0ms);
+      transition: background 0.2s ease;
+    }
+    .task-card:active { background: var(--bg-elevated); }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .task-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--bg-elevated);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; flex-shrink: 0;
+    }
+    .task-info { flex: 1; min-width: 0; }
+    .task-name { font-size: 0.9375rem; font-weight: 500; margin-bottom: 2px; }
+    .task-interval {
+      font-size: 0.8125rem; color: var(--text-secondary);
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+    .task-interval:hover { color: var(--accent); }
+    .task-action {
+      font-size: 0.75rem; color: var(--text-muted);
+      background: var(--bg-elevated);
+      padding: 4px 10px; border-radius: 100px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .task-card.flash { animation: cardFlash 0.6s ease; }
+    @keyframes cardFlash {
+      0%, 100% { background: var(--bg-surface); }
+      30% { background: var(--card-accent, var(--accent-dim)); }
+    }
+    .task-pause-btn {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-muted);
+      font-size: 0.6875rem;
+      padding: 3px 8px; border-radius: 6px;
+      cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+    .task-pause-btn.active { border-color: var(--accent); color: var(--accent); }
+    .task-pause-btn:active { transform: scale(0.95); }
+    .task-countdown {
+      font-size: 0.75rem; color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px;
+    }
+    .popup-overlay {
+      position: fixed; inset: 0; z-index: 999;
+      background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      animation: popIn 0.3s ease;
+      cursor: pointer;
+    }
+    .popup-card {
+      background: var(--bg-surface);
+      border-radius: var(--radius);
+      padding: 32px;
+      text-align: center;
+      max-width: 320px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .popup-icon { font-size: 3rem; margin-bottom: 12px; }
+    .popup-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 8px; }
+    .popup-msg { color: var(--text-secondary); font-size: 0.9375rem; line-height: 1.5; }
+    .popup-hint { color: var(--text-muted); font-size: 0.75rem; margin-top: 16px; }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .footer {
+      padding: 24px 0; text-align: center;
+      color: var(--text-muted); font-size: 0.8125rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-icon">⚡</div>
+      <h1>健康提醒</h1>
+      <p>在忙碌中照顾自己</p>
+      <div class="status-badge" id="statusBadge">
+        <span class="status-dot"></span>
+        <span id="statusText">检测中...</span>
+      </div>
+      <button class="btn-permit" id="btnPermit">开启通知提醒</button>
+      <p class="denied-hint" id="deniedHint">通知权限已被禁止，请在浏览器设置中手动开启</p>
+    </header>
+    <main class="main" id="main"></main>
+    <footer class="footer">
+      <span id="swStatus">Service Worker 加载中...</span>
+    </footer>
+  </div>
+
+  <script type="module">
+    // ============================================
+    // SW 注册（只做缓存，不参与定时）
+    // ============================================
+    if ('serviceWorker' in navigator) {
+      try {
+        await navigator.serviceWorker.register('./sw.js', { scope: './' });
+        await navigator.serviceWorker.ready;
+        document.getElementById('swStatus').textContent = 'Service Worker 已就绪';
+      } catch (err) {
+        document.getElementById('swStatus').textContent = 'SW 注册失败';
+      }
+    } else {
+      document.getElementById('swStatus').textContent = '不支持 Service Worker';
+    }
+
+    // ============================================
+    // 通知权限 + AudioContext 预热
+    // ============================================
+    var statusBadge = document.getElementById('statusBadge');
+    var statusText = document.getElementById('statusText');
+    var btnPermit = document.getElementById('btnPermit');
+    var deniedHint = document.getElementById('deniedHint');
+    var audioCtx = null;
+
+    function updatePermissionUI() {
+      var p = Notification?.permission ?? 'unsupported';
+      statusBadge.className = 'status-badge';
+      if (p === 'granted') {
+        statusBadge.classList.add('granted');
+        statusText.textContent = '通知已开启';
+        btnPermit.style.display = 'none';
+        deniedHint.style.display = 'none';
+      } else if (p === 'denied') {
+        statusBadge.classList.add('denied');
+        statusText.textContent = '通知已禁用';
+        btnPermit.style.display = 'none';
+        deniedHint.style.display = 'block';
+      } else {
+        statusText.textContent = '未开启通知';
+        btnPermit.style.display = 'inline-flex';
+        deniedHint.style.display = 'none';
+      }
+    }
+
+    btnPermit.addEventListener('click', async () => {
+      await Notification.requestPermission();
+      updatePermissionUI();
+      // 用户手势内预热 AudioContext，解除浏览器自动播放限制
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    });
+
+    if ('permissions' in navigator) {
+      try {
+        var s = await navigator.permissions.query({ name: 'notifications' });
+        s.onchange = updatePermissionUI;
+      } catch (e) {}
+    }
+
+    // ============================================
+    // 核心状态（全部在页面内存，不依赖 SW）
+    // ============================================
+    var nextTriggers = {};
+    var pausedTasks = {};
+
+    function getInterval(taskId) {
+      var custom = localStorage.getItem('hr-' + taskId);
+      if (custom) return parseInt(custom, 10) * 60 * 1000;
+      var task = HEALTH_TASKS.find(function (t) { return t.id === taskId; });
+      return task ? task.interval : 20 * 60 * 1000;
+    }
+
+    HEALTH_TASKS.forEach(function (task) {
+      nextTriggers[task.id] = Date.now() + getInterval(task.id);
+    });
+
+    // ============================================
+    // 提醒执行：系统通知 + 差异化声音 + 页面弹窗
+    // ============================================
+    function playSound(taskId) {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      try {
+        var notes = {
+          'eye-rest':    [[440,200,100],[550,300,0]],
+          'drink-water': [[660,350,0]],
+          'stretch':     [[550,150,80],[660,150,80],[880,200,0]],
+          'exercise':    [[880,120,80],[880,120,80],[880,120,80],[1100,250,0]],
+        };
+        var seq = notes[taskId] || notes['drink-water'];
+        var t = audioCtx.currentTime;
+        seq.forEach(function (n) {
+          var osc = audioCtx.createOscillator();
+          var gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = n[0];
+          gain.gain.setValueAtTime(0.4, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + n[1] / 1000);
+          osc.connect(gain); gain.connect(audioCtx.destination);
+          osc.start(t); osc.stop(t + n[1] / 1000);
+          t += n[1] / 1000 + (n[2] || 0) / 1000;
+        });
+      } catch (e) {}
+    }
+
+    function fireTask(task) {
+      if (Notification.permission === 'granted') {
+        new Notification(task.icon + ' ' + task.name, {
+          body: task.message, icon: './icon.svg',
+          tag: 'task-' + task.id, renotify: true,
+        });
+      }
+      playSound(task.id);
+      var overlay = document.createElement('div');
+      overlay.className = 'popup-overlay';
+      overlay.innerHTML =
+        '<div class="popup-card">' +
+        '<div class="popup-icon">' + task.icon + '</div>' +
+        '<div class="popup-title">' + task.name + '</div>' +
+        '<div class="popup-msg">' + task.message + '</div>' +
+        '<div class="popup-hint">点击任意处关闭</div>' +
+        '</div>';
+      var dismiss = function () { overlay.remove(); };
+      overlay.addEventListener('click', dismiss);
+      document.body.appendChild(overlay);
+      setTimeout(dismiss, 5000);
+      var btn = main.querySelector('[data-id="' + task.id + '"]');
+      if (btn) {
+        var card = btn.closest('.task-card');
+        if (card) { card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
+      }
+      nextTriggers[task.id] = Date.now() + getInterval(task.id);
+    }
+
+    // ============================================
+    // 主循环：每秒检查
+    // ============================================
+    setInterval(function () {
+      var now = Date.now();
+      HEALTH_TASKS.forEach(function (task) {
+        if (task.id in pausedTasks) {
+          updateCountdown(task.id, pausedTasks[task.id]);
+          return;
+        }
+        if (now >= nextTriggers[task.id]) fireTask(task);
+        updateCountdown(task.id, Math.max(0, nextTriggers[task.id] - now));
+      });
+    }, 1000);
+
+    function updateCountdown(taskId, ms) {
+      var el = document.getElementById('cd-' + taskId);
+      if (!el) return;
+      var s = Math.ceil(ms / 1000);
+      el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+    }
+
+    // ============================================
+    // 渲染卡片
+    // ============================================
+    var main = document.getElementById('main');
+    main.innerHTML = '<div class="task-list">' + HEALTH_TASKS.map(function (task, i) {
+      var interval = getInterval(task.id);
+      return (
+        '<div class="task-card" style="--delay:' + (i * 80) + 'ms;--card-accent:' + task.color + '">' +
+        '<div class="task-icon">' + task.icon + '</div>' +
+        '<div class="task-info">' +
+        '<h3 class="task-name">' + task.name + '</h3>' +
+        '<p class="task-interval" data-id="' + task.id + '">每 ' + formatInterval(interval) + '</p>' +
+        '</div>' +
+        '<span class="task-action">' + task.action + '</span>' +
+        '<button class="task-pause-btn" data-id="' + task.id + '">暂停</button>' +
+        '<span class="task-countdown" id="cd-' + task.id + '">--:--</span>' +
+        '</div>'
+      );
+    }).join('') + '</div>';
+
+    updatePermissionUI();
+
+    // ============================================
+    // 交互
+    // ============================================
+    main.addEventListener('click', function (e) {
+      var intervalEl = e.target.closest('.task-interval');
+      if (intervalEl) {
+        var tid = intervalEl.dataset.id;
+        var curMin = Math.round(getInterval(tid) / 60000);
+        var input = prompt('设置间隔（分钟）', curMin);
+        if (input && !isNaN(input) && parseInt(input) > 0) {
+          var newMs = parseInt(input, 10) * 60 * 1000;
+          localStorage.setItem('hr-' + tid, input);
+          nextTriggers[tid] = Date.now() + newMs;
+          intervalEl.textContent = '每 ' + formatInterval(newMs);
+        }
+        return;
+      }
+      var pauseBtn = e.target.closest('.task-pause-btn');
+      if (pauseBtn) {
+        var tid = pauseBtn.dataset.id;
+        if (pauseBtn.textContent === '恢复') {
+          nextTriggers[tid] = Date.now() + pausedTasks[tid];
+          delete pausedTasks[tid];
+          pauseBtn.textContent = '暂停';
+          pauseBtn.classList.remove('active');
+        } else {
+          pausedTasks[tid] = Math.max(0, nextTriggers[tid] - Date.now());
+          pauseBtn.textContent = '恢复';
+          pauseBtn.classList.add('active');
+        }
+      }
+    });
+  </script>
+</body>
+</html>

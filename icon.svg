@@ -1,0 +1,7 @@
+<?xml version="1.0" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 532 532">
+  <!-- 深色圆角矩形背景，与 app 主题一致 -->
+  <rect width="512" height="512" rx="108" fill="#0a0a0f"/>
+  <!-- 心电图闪电，暗示"健康"与"活力"，纯路径无依赖 -->
+  <path d="M256 120 L256 200 L300 200 L230 320 L230 240 L200 240 Z" fill="#10b981" stroke="#10b981" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

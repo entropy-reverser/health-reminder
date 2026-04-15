@@ -1,0 +1,20 @@
+{
+  "name": "Health Reminder",
+  "short_name": "健康提醒",
+  "description": "在忙碌中照顾自己 —— 极简健康提醒工具",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "categories": ["health", "lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
